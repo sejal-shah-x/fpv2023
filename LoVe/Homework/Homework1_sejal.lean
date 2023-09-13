@@ -63,7 +63,7 @@ Note: Peirce is pronounced like the English word "purse." -/
 
 @[autograded 2] def weakPeirce : ((((α → β) → α) → α) → β) → β :=
  
-  fun f => f fun g fun a
+  fun f => f fun g => g fun h => h fun a
 
 
 /- ## Question 2 (4 points): Typing Derivation
