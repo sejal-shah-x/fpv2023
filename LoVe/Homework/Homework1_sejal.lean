@@ -48,7 +48,7 @@ context. -/
   fun f => fun g => fun a => f a (g a)
 
 @[autograded 1] def moreNonsense : (γ → (α → β) → α) → γ → β → α :=
-  fun f => fun c => fun b => f c fun h
+  fun f => fun c => fun b => f c (fun a => b) 
 
 @[autograded 1] def evenMoreNonsense : (α → α → β) → (β → γ) → α → β → γ :=
   fun f => fun g => fun a => g
@@ -62,9 +62,8 @@ follow the procedure described in the Hitchhiker's Guide.
 Note: Peirce is pronounced like the English word "purse." -/
 
 @[autograded 2] def weakPeirce : ((((α → β) → α) → α) → β) → β :=
-  sorry
-
-
+ 
+  fun f => f fun g fun a
 
 
 /- ## Question 2 (4 points): Typing Derivation
@@ -77,9 +76,20 @@ Feel free to introduce abbreviations to avoid repeating large contexts `C`. -/
 
 -- Write your solution here
 
+/-
 
 
 
+                                                                  ——————————————————————————— VAR
+                                                                    a : α  ⊢ f a (g a) : γ                       
+                                        ————————————————— VAR     ——————————————————————————— FUN
+                                            g : (α → β)      ⊢      fun a ↦ f a (g a) : α → γ                        
+  ————————————————————————— VAR         —————————————————————————————————————————————————————— FUN
+        f : (α → β → γ)         ⊢           fun g ↦ fun a ↦ f a (g a) : (α → β) → α → γ
+          —————————————————————————————————————————————————————————————————————————————————— FUN
+                  fun f ↦ fun g ↦ fun a ↦ f a (g a) : (α → β → γ) → (α → β) → α → γ
+
+-/
 
 /-! ## Question 3 (3 points): Implicit Arguments
 
