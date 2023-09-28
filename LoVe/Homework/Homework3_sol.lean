@@ -39,14 +39,24 @@ Hint: There is an easy way. -/
 
 @[autograded 1] theorem about_Impl_term :
   ∀a b : Prop, ¬ a ∨ b → a → b :=
-  sorry
+  about_Impl
 
 /- 1.2 (2 points). Prove the same theorem again, this time by providing a
 structured proof, with `fix`, `assume`, and `show`. -/
 
 @[autograded 2] theorem about_Impl_struct :
   ∀a b : Prop, ¬ a ∨ b → a → b :=
-  sorry
+  fix a b : Prop
+  assume hnab : ¬ a ∨ b
+  assume ha : a
+  show b from
+    Or.elim hnab
+    (show ¬ a → b from
+      assume hna : ¬ a
+      False.elim (hna ha))
+    (show b → b from
+      assume hb : b
+      hb)
 
 /-
 1.3 (2 points). The following lemma will be helpful for part 4.
@@ -55,9 +65,19 @@ no `Classical.em` or `Classical.byContradiction`.
 -/
 
 @[autograded 2]
-lemma not_iff_not_self (P : Prop) : ¬ (P ↔ ¬ P) := 
- sorry 
-
+lemma not_iff_not_self (P : Prop) : ¬ (P ↔ ¬ P) :=
+  assume hiff : P ↔ ¬ P
+  have hleft : P → ¬ P :=
+    hiff.mp
+  have hright : ¬ P → P :=
+    hiff.mpr
+  show False from
+    Or.elim (Classical.em P)
+    (assume hP: P
+    (hleft hP) hP)
+    (assume hnP: ¬ P
+    hnP (hright hnP))
+  
 
 example (Q : Prop) : ¬ (Q ↔ ¬ Q) :=
   not_iff_not_self Q
@@ -70,8 +90,6 @@ shave himself?
 Provide a structured proof showing that this premise implies `False`.
 -/
 
-
-
 section
   @[autograded 1] theorem false_of_barber
     (Person : Type)
@@ -79,7 +97,10 @@ section
     (barber : Person)
     (h : ∀ x, shaves barber x ↔ ¬ shaves x x)
     : False :=
-    sorry
+    have hb : shaves barber barber ↔ ¬ shaves barber barber :=
+      h barber
+    show False from
+      not_iff_not_self (shaves barber barber) hb
 end
 
 
@@ -92,8 +113,32 @@ rules for `∀`, `∨`, and `↔`. -/
 
 @[autograded 3] theorem Or_comm_under_All {α : Type} (p q : α → Prop) :
   (∀x, p x ∨ q x) ↔ (∀x, q x ∨ p x) :=
-  sorry
-
+    Iff.intro
+    (show (∀x, p x ∨ q x) → (∀x, q x ∨ p x) from
+        assume h1: (∀x, p x ∨ q x)
+        assume hx: α
+        have h1or: p hx ∨ q hx :=
+          h1 hx
+        show q hx ∨ p hx from
+          Or.elim h1or 
+          (assume hp : p hx
+          Or.inr hp)
+          (assume hq : q hx
+          Or.inl hq) 
+    )
+    (
+      show (∀x, q x ∨ p x) → (∀x, p x ∨ q x) from
+        assume h2: (∀x, q x ∨ p x)
+        assume hx: α
+        have h2or: q hx ∨ p hx :=
+          h2 hx
+        show p hx ∨ q hx from
+          Or.elim h2or 
+          (assume hq : q hx
+          Or.inr hq)
+          (assume hp : p hx
+          Or.inl hp)
+    )
 
 
 /-! ## Question 3 (2 points): Calc Mode
@@ -115,7 +160,24 @@ You might find some of the following lemmas useful!
 
 @[autograded 2] lemma difference_of_squares (a b : ℤ) :
   (a + b) * (a - b) = a * a - b * b :=
-  sorry
-
-
+  calc
+    (a + b) * (a - b) = (a + b) * a - (a + b) * b :=
+      by rw [mul_sub]
+    _ =  a * a + b * a - (a + b) * b :=
+      by rw [add_mul]
+    _ =  a * a + b * a - (a * b + b * b) :=
+      by rw [add_mul]
+    _ = a * a + a * b - (a * b + b * b) :=
+      by rw [mul_comm a b]
+    _ = a * a + a * b - a * b - b * b :=
+      by rw [sub_add_eq_sub_sub]
+    _ = a * a + (a * b - a * b) - b * b :=
+      by rw [add_sub_assoc]
+    _ = a * a + 0 - b * b :=
+      by rw [sub_self]
+    _ = a * a - b * b :=
+      by rw [add_zero]
+    _ = a * a - b * b :=
+      by rfl
+    
 end LoVe
