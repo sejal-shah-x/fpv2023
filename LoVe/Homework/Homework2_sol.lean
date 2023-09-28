@@ -147,12 +147,19 @@ Hints:
   by
     rw [DoubleNegation]
     rw [ExcludedMiddle]
-    intro hdn
-    intro a
-    
-
-
-    sorry
+    intro hdn a
+    rw [Not]
+    apply hdn
+    rw [Not]
+    rw [Not]
+    intro hana -- not (a or not a)
+    apply hana
+    apply Or.inr
+    intro ha
+    apply hana
+    apply Or.inl
+    apply ha
+    done   
 /-
 
 In this week's lab, you'll have the option to prove a few more implications.
