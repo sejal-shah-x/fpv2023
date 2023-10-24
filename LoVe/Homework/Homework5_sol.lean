@@ -41,16 +41,12 @@ inductive Term : Type
 /- 1.1 (2 points). Define an inductive predicate `IsApp` on `Term`s that is true
 if and only if its argument is of the form `Term.app …`. -/
 
--- enter your definition here
-
 inductive IsApp : Term → Prop
   | app (x y: Term) : IsApp (Term.app x y)
 
 
 /- 1.2 (2 points). Define an inductive predicate `IsLamFree` that is true if
 and only if its argument is a term that contains no λ-expressions. -/
-
--- enter your definition here
 
 inductive IsLamFree : Term → Prop where
   | var (x : String) : IsLamFree (Term.var x)
@@ -65,7 +61,6 @@ inductive Even : ℕ → Prop
   | zero            : Even 0
   | add_two (k : ℕ) : Even k → Even (k + 2)
 
-
 /- 2.1 (1 point). Define a similar predicate for odd numbers, by completing the
 Lean definition below. The definition should distinguish two cases, like `Even`,
 and should not rely on `Even`. -/
@@ -73,7 +68,6 @@ and should not rely on `Even`. -/
 inductive Odd : ℕ → Prop
   | one            : Odd 1
   | add_two (k : ℕ) : Odd k → Odd (k + 2)
--- supply the missing cases here
 
 /- 2.2 (1 point). Give *proof terms* for the following propositions, based on
 your answer to question 2.1. -/
