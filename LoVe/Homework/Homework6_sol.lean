@@ -37,6 +37,7 @@ infixr:90 "; " => Stmt.seq
 /- The `skip`, `assign`, and `S; T` statements have the same syntax and
 semantics as in the WHILE language.
 
+
 The `unless b do S` statement executes `S` unless `b` is true—i.e., it executes
 `S` if `b` is false. Otherwise, `unless b do S` does nothing. This construct is
 inspired by the Perl language.
@@ -50,6 +51,21 @@ concerned), and `repeat 0 S` has the same effect as `skip`.
 inductive BigStep : Stmt × State → State → Prop
   | skip (s) :
     BigStep (Stmt.skip, s) s
+  | assign (X A s) :
+    BigStep (Stmt.assign X A, s) (s[X ↦ A s])
+  | seq (S T s t u) (hS : BigStep (S, s) t) (hT : BigStep (T, t) u) :
+    BigStep (S ; T , s) u
+  | unlessDoTrue (B S s) (hB : B s) :
+    BigStep (Stmt.unlessDo B S, s) s
+  | unlessDoFalse (B S s f) (hB : ¬ (B s)) (hf : BigStep (S, s) f) :
+    BigStep (Stmt.unlessDo B S, s) f
+  | repeat0 (n S s) (hn : n = 0) :
+    BigStep (Stmt.repeat n S, s) s
+  | repeatn (n S s t u) (hn : n ≥ 1)
+    (ht : BigStep (S, s) t) -- intermediate state
+    (hu : BigStep (Stmt.repeat (n - 1) S, t) u) :
+    BigStep (Stmt.repeat n S, s) u
+
 -- enter the missing cases here
 
 infix:110 " ⟹ " => BigStep
@@ -60,7 +76,45 @@ of `unless`. -/
 @[autograded 1]
 theorem BigStep_ite_iff {B S s t} :
   (Stmt.unlessDo B S, s) ⟹ t ↔ (B s ∧ s = t) ∨ (¬ B s ∧ (S, s) ⟹ t) :=
-  sorry
+  by
+    apply Iff.intro
+    {
+      intro bs1
+      cases bs1 with
+      | unlessDoTrue _ _ _ hB => {
+        simp
+        apply Or.inl
+        apply hB
+      }
+      | unlessDoFalse _ _ _ _ hB hf => {
+        apply Or.inr
+        apply And.intro
+        apply hB
+        apply hf
+      }
+    }
+    {
+      intro s1
+      apply Or.elim s1
+      {
+      intro h1
+      have hB : B s := h1.left
+      have ht := h1.right
+      rw [ht]
+      apply BigStep.unlessDoTrue
+      rw [←ht]
+      apply hB
+      }
+      {
+      intro h1
+      have hB := h1.left
+      have ht := h1.right
+      apply BigStep.unlessDoFalse
+      apply hB
+      apply ht
+      }
+    }
+    done
 
 /- 1.3 (2 points). Prove the following inversion rule for the big-step
 semantics of `repeat`. -/
@@ -70,10 +124,80 @@ theorem BigStep_repeat_iff {n S s u} :
   (Stmt.repeat n S, s) ⟹ u ↔
   (n = 0 ∧ u = s)
   ∨ (∃m t, n = m + 1 ∧ (S, s) ⟹ t ∧ (Stmt.repeat m S, t) ⟹ u) :=
-  sorry
+  by
+    apply Iff.intro
+    {
+      intro bs1
+      cases bs1 with
+      | repeat0 _ _ _ hn => {
+        apply Or.inl
+        simp
+        apply hn
+      }
+      | repeatn _ _ _ t u hn ht hu => {
+        apply Or.inr
+        let m : ℕ := n - 1
+        apply Exists.intro m
+        apply Exists.intro t
+        apply And.intro
+        {
+        apply Eq.symm
+        rw [add_comm]
+        simp
+        cases n with
+        | zero => {
+          conv at hn => simp
+          apply False.elim hn
+        }
+        | succ k => {
+          simp
+          rw [add_comm]
+        }
+        }
+        simp
+        apply And.intro
+        assumption
+        assumption
+      }
+    }
+    {
+      intro hlong
+      apply Or.elim hlong
+      intro hx
+      have h1 := hx.left
+      have h2 := hx.right
+      rw [← h2]
+      apply BigStep.repeat0 n S
+      apply h1
+      intro hlong
+      apply Exists.elim hlong
+      intro m
+      intro hlong
+      apply Exists.elim hlong
+      intro t
+      intro hlong
+      have hm := hlong.left
+      have h2 := hlong.right
+      have h3 := h2.left
+      have h2 := h2.right
+      apply BigStep.repeatn
+      rw [hm]
+      simp
+      apply h3
+      have h4 : n - 1 = m :=
+        calc
+          n - 1 = m + 1 - 1 := by rw [hm]
+          _ = m := by rfl
+      conv at h4 => {
+        apply Eq.symm
+      }
+      simp
+      rw [h4]
+      apply h2
+    }
+    done
 
 end Repeat
-
 
 -- This is a helper lemma for the question below
 theorem _root_.Nat.lt_of_lt_succ_ne {k m : Nat} (hlt : k < m.succ) (hne : k ≠ m)
@@ -233,11 +357,15 @@ format! -/
 
 -- `(λg. λf. λx. g (f x))`
 def comp : ClosedTerm :=
-  sorry
+  lam (lam (lam (app (var 2) (app (var 1) (var 0)))))
+
+#eval toString comp
 
 -- `(λf. f (λg. g f))`
 def someNonsense : ClosedTerm :=
-  sorry
+  lam (app (var 0) (lam (app (var 0) (var 1))))
+
+-- #eval toString someNonsense
 
 /- Now that we've defined the syntax of the ULC, we need to specify its
 semantics! Once again, lambda abstractions turn out to be tricky: in particular,
@@ -296,13 +424,13 @@ def push {m n : Nat} : Term m → m ≤ n → Term n
 def subst {m : Nat} : (body : Term m.succ) → (arg : ClosedTerm) → Term m
   | var ⟨k, hk⟩, arg =>
     if h : k = m then
-      sorry
+      push arg (Nat.zero_le m)
     else
-      sorry
+      var ⟨k, (Nat.lt_of_lt_succ_ne hk h)⟩
   | lam b      , arg =>
-    sorry
+    lam (subst b arg)
   | app f x    , arg =>
-    sorry
+    app (subst f arg) (subst x arg)
 
 /- Equipped with a definition of substitution, we can now state the semantics of
 the ULC! Notice that we only define our semantics for `ClosedTerm`s: our
@@ -343,7 +471,10 @@ can't prove that it agrees with `Step`. Instead, you'll want to use some test
 cases -- using `#eval` and `toString` -- to check your work.) -/
 
 unsafe def eval : ClosedTerm → ClosedTerm
-  := sorry
+  | var ⟨k, hk⟩ => var ⟨k, hk⟩
+  | lam b => lam b
+  | app (lam f) x => eval (subst f x)
+  | app f x => app (eval f) (eval x)
 
 /- In the lab, we discussed the concept of *progress*: the property of a (typed)
 language that ensures that no well-typed term "gets stuck" during evaluation:
@@ -377,9 +508,48 @@ tactic here. Instead, you'll need to use `cases` and obtain an IH by explicitly
 invoking `quasiprogress` recursively (e.g.,
 `have ih := quasiprogress someTermHere`). Make sure your recursion is valid! -/
 
+def triv := Nat.zero_le 1
+
 @[autograded 2]
 theorem quasiprogress : ∀ t : ClosedTerm, Value t ∨ (∃ b', t ⇒ b') :=
-  sorry
+  by
+    intro t
+    cases t with
+    | var h => {
+      have hn := h.val
+      have hk := h.isLt
+      conv at hk => {
+        simp
+      }
+      apply False.elim hk
+    }
+    | lam b => {
+      apply Or.inl
+      apply Value.lam
+    }
+    | app f x => {
+      have fstep := quasiprogress f
+      apply Or.elim fstep
+      {
+        intro vf
+        cases vf with
+        | lam b => {
+          apply Or.inr
+          apply Exists.intro
+          apply Step.app
+        }
+      }
+      {
+        intro fs
+        cases fs
+        apply Or.inr
+        apply Exists.intro
+        apply Step.fn
+        assumption
+      }
+      }
+    done
+
 
 /- 2.5 (2 points). The functional language we presented in the lab had an even
 stronger guarantee than progress: every well-typed term not only stepped to some
@@ -422,7 +592,30 @@ theorem rtc_step_self_of_step_self {t t' : ClosedTerm} :
 
 @[autograded 2]
 theorem nontermination : ∃ t : ClosedTerm, Nonterminating t :=
-  sorry
+  by
+    let v : Term 1 := app (var 0) (var 0)
+    let f : ClosedTerm := lam v
+    let fapp : ClosedTerm := app f f
+    let st1 : fapp ⇒ fapp :=
+      @Step.app v f
+    apply Exists.intro fapp
+    rw [Nonterminating]
+    rw [Not]
+    simp
+    intro t'
+    have rtc1 {t' : ClosedTerm} : fapp ⇒* t' → t' = fapp :=
+      rtc_step_self_of_step_self st1
+    intro rtc2
+    have h2 : t' = fapp := rtc1 rtc2
+    intro hval
+    cases hval with
+    | lam b => {
+      conv at h2 => {
+        simp
+      }
+      apply h2
+    }
+    done
 
 end UntypedLambdaCalculus
 
